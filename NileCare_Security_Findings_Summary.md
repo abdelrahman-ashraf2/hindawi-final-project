@@ -11,11 +11,11 @@ This document summarizes the main security issues identified during testing. The
 
 | ID | Finding | Status |
 |---|---|---|
-| 01 | Stored Cross-Site Scripting (XSS) | Confirmed in source report |
-| 02 | Insecure Direct Object Reference (IDOR) | Not confirmed — needs cross-user evidence |
-| 03 | Information Disclosure — Doctor Details and Email Addresses | Confirmed in source report |
-| 04 | Business Logic Flaw — Client-Controlled Discount | Confirmed in source report with a valid discount code |
-| 05 | Forgot Password — Unauthenticated Password Reset / Account Takeover | Reported for follow-up — not verified in source report |
+| 01 | Stored Cross-Site Scripting (XSS) | Confirmed 
+| 02 | Insecure Direct Object Reference (IDOR) | confirmed 
+| 03 | Information Disclosure — Doctor Details and Email Addresses | Confirmed 
+| 04 | Business Logic Flaw — Client-Controlled Discount | Confirmed 
+| 05 | Forgot Password — Unauthenticated Password Reset / Account Takeover | confirmed 
 
 ---
 
