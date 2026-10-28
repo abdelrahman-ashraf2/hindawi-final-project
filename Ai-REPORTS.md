@@ -379,3 +379,6 @@ This is enough to access private medical data, take over accounts, and monetize 
 ## Final note
 
 This report was reformatted for readability, professionalism, and easier review while preserving the original security findings and evidence.
+
+H3ML RED TEAMING HNA
+------------------------------------------------------------------------
