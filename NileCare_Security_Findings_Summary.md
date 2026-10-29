@@ -105,7 +105,7 @@ Because the HMAC signature is either not verified or absent during request autho
 
 * Capture the request in Burp Suite and extract the `session` cookie value.
 
-
+![captured the request in Burp Suite](<Images/Screenshot 2026-10-29 003322.png>)
 
 * Decode the session cookie using `[https://hackindex.io/](https://hackindex.io/)` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
 
