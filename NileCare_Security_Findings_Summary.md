@@ -281,7 +281,7 @@ A critical security vulnerability resides in the password reset mechanism of the
 2. **Observing the Information Disclosure:**
 * Inspect the HTTP response body. The application explicitly prints the raw reset URL containing the static token (`1d4db8800978483ef04a31e92f6ed3ca`).
 
-
+![raw token captured on Burp Suite](<Images/Screenshot 2026-10-29 044404.png>)
 
 3. **Executing Account Takeover:**
 * Navigate to the URL over HTTPS (`https://tan-clinic-mono-flood.trycloudflare.com/reset-password?token=...`).
