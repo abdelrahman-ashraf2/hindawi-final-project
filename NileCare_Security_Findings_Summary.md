@@ -136,7 +136,7 @@ Because the HMAC signature is either not verified or absent during request autho
 * The server responds with `HTTP/2 302 Found` redirecting to `/dashboard`.
 
 
-
+![photo of the request with the modified cookie](<Images/Screenshot 2026-10-29 011527.png>)
 
 
 4. **Verification:**
