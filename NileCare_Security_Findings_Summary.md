@@ -142,8 +142,11 @@ Because the HMAC signature is either not verified or absent during request autho
 4. **Verification:**
 * Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny was successfully booked under the victim's account profile.
 
+`ff@ff before the exploitation` 
+![ff@ff before the exploitation](<Images/Screenshot 2026-10-29 010027.png>)
 
-
+`ff@ff after the exploitation`
+![ff@ff after the exploitation](<Images/Screenshot 2026-10-29 011511.png>)
 
 
 ---
