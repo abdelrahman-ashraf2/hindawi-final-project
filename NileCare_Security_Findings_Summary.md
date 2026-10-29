@@ -45,7 +45,7 @@ The application accepts a file whose name contains a permitted image extension e
 
 ## 02 — Insecure Direct Object Reference (IDOR)
 
-# Vulnerability Assessment Report
+## Vulnerability Assessment Report
 
 ---
 
@@ -178,7 +178,7 @@ Because the HMAC signature is either not verified or absent during request autho
 3. **Strict Authorization Checks:**
 * Validate that the authenticated user performing the action matches the server-side identity associated with the session before executing write operations on `/book`.
 
-`submitted by Abdulaziz soltan, aka k0rdz`
+`Discovered and tested by Abdulaziz Soltan, aka k0rdz`
 
 ## 03 — Information Disclosure: Doctors' Details and Email Addresses
 
@@ -290,15 +290,15 @@ A critical security vulnerability resides in the password reset mechanism of the
 
 * Input a new password to successfully compromise the victim's account.
 
-
+![navigating to the URL](<Images/Screenshot 2026-10-29 044601.png>)
 
 
 4. **Validating Persistent Reusability:**
 * Attempt to reuse the exact same token URL again; confirm that **the token remains valid indefinitely**, allowing an attacker to regain entry at any time even after passwords are changed.
 
+![first use of the reset token](<Images/Screenshot 2026-10-29 053958.png>)
 
-
-
+![second use of the reset token](<Images/Screenshot 2026-10-29 054031.png>)
 
 ---
 
@@ -328,3 +328,5 @@ A critical security vulnerability resides in the password reset mechanism of the
 
 3. **Token Rotation:**
 * Ensure requesting a new reset token or successfully changing a password invalidates all prior tokens associated with the account.
+
+`Discovered and tested by Abdulaziz Soltan, aka k0rdz`
