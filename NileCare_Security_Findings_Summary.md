@@ -107,10 +107,9 @@ Because the HMAC signature is either not verified or absent during request autho
 
 ![captured the request in Burp Suite](<Images/Screenshot 2026-10-29 003322.png>)
 
-* Decode the session cookie using `[https://hackindex.io/](https://hackindex.io/)` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
+* Decode the session cookie using `https://hackindex.io/` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
 
-
-
+![photo of the JSON Payload](<Images/Screenshot 2026-10-29 010122.png>)
 
 2. **Payload Modification & Encoding:**
 * Modify the payload attributes to target the victim account (`ffff` / `ff@ff`):
@@ -132,16 +131,6 @@ Because the HMAC signature is either not verified or absent during request autho
 3. **Exploitation / Request Submission:**
 * Send a `POST /book` request with the modified `session` cookie:
 
-
-```http
-POST /book HTTP/2
-Host: tan-clinic-mono-flood.trycloudflare.com
-Cookie: session=<MODIFIED_COOKIE_VALUE>
-Content-Type: application/x-www-form-urlencoded
-
-name=inAct&email=kk%40kk&phone=0100101010&doctor_id=4&date=2026-12-12&time=11%3A00+AM&notes=
-
-```
 
 
 * The server responds with `HTTP/2 302 Found` redirecting to `/dashboard`.
