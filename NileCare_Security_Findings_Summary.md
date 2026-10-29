@@ -45,27 +45,143 @@ The application accepts a file whose name contains a permitted image extension e
 
 ## 02 — Insecure Direct Object Reference (IDOR)
 
-**Affected functionality:** Medical-report viewing  
-**Endpoint:** `GET /api/v1/reports/view?token=...`  
-**Status:** Requires further verification
-
-The report-view token contains readable Base64-encoded identifiers. The original testing established that the token format is not cryptographically protected, but **did not prove access to another user's medical report**. Attempts to change the `user_id` were rejected; cross-user `report_id` access remained untested or inconclusive.
-
-**Potential impact if confirmed:** Unauthorized access to another patient's medical report or sensitive healthcare information.
-
-**Technical details — add here**
-
-- **Affected URL / object reference:** [ADD]
-- **Authorized test accounts:** [ADD]
-- **Object ownership comparison:** [ADD]
-- **Steps to reproduce:** [ADD]
-- **HTTP requests and responses:** [ADD]
-- **Evidence of cross-user access:** [ADD]
-- **Screenshots:** [ADD]
-
-**Recommendation:** Enforce server-side object-level authorization for every report request and use authenticated, signed, short-lived references where applicable.
+# Vulnerability Assessment Report
 
 ---
+
+## 1. Executive Summary
+
+An **Insecure Direct Object Reference (IDOR) / Broken Access Control** vulnerability exists within the NileCare Patient Portal booking system. The application relies on a client-side modifiable session cookie (using URL-safe timed serialization without signature enforcement verification) to identify the authenticated user. By decoding the session payload, modifying identity parameters (`user_id`, `patient_name`, `patient_email`), and re-encoding the token, an attacker can manipulate session state to schedule medical appointments on behalf of arbitrary victims.
+
+---
+
+## 2. Vulnerability Overview
+
+* **Vulnerability Type:** Insecure Direct Object Reference (IDOR) / Broken Access Control / Insecure Session Management.
+
+
+* **Affected Application:** NileCare Patient Portal (https://tan-clinic-mono-flood.trycloudflare.com).
+
+
+* **Affected Endpoint:** `POST /book`.
+
+
+* **Severity:** High (CVSS v3.1 Score: 7.5 - `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N`).
+* **Impact:** Unauthorized appointment creation for arbitrary users, potential schedule/calendar tampering, and loss of integrity in patient booking records.
+
+
+
+---
+
+## 3. Technical Details & Root Cause Analysis
+
+### Root Cause
+
+The NileCare application uses a `URLSafeTimedSerializer` (zlib deflated JSON structure) to serialize user identity into the `session` cookie. The server processes booking requests at `/book` by trusting the identity stored within this session object without verifying a cryptographic signature or matching the request identity against server-side session state.
+
+### Decoded Session Cookie Payload
+
+Decoding the `session` cookie via tools (e.g., `[https://hackindex.io/](https://hackindex.io/)`) reveals the unverified JSON structure:
+
+```json
+{
+  "patient_email": "kk@kk",
+  "patient_name": "inAct",
+  "user_id": 1322
+}
+
+```
+
+Because the HMAC signature is either not verified or absent during request authorization, an attacker can replace `user_id`, `patient_name`, and `patient_email` with victim parameters (e.g., `ff@ff`) and submit modified booking requests.
+
+---
+
+## 4. Proof of Concept (PoC) Steps
+
+1. **Session Interception & Decoding:**
+* Log into the NileCare portal and initiate a appointment booking request.
+
+
+* Capture the request in Burp Suite and extract the `session` cookie value.
+
+
+* Decode the session cookie using `[https://hackindex.io/](https://hackindex.io/)` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
+
+
+
+
+2. **Payload Modification & Encoding:**
+* Modify the payload attributes to target the victim account (`ffff` / `ff@ff`):
+```json
+{
+  "patient_email": "ff@ff",
+  "patient_name": "ffff",
+  "user_id": <VICTIM_ID>
+}
+
+```
+
+
+* Encode the modified JSON structure using the `URLSafeTimedSerializer` format.
+
+
+
+
+3. **Exploitation / Request Submission:**
+* Send a `POST /book` request with the modified `session` cookie:
+
+
+```http
+POST /book HTTP/2
+Host: tan-clinic-mono-flood.trycloudflare.com
+Cookie: session=<MODIFIED_COOKIE_VALUE>
+Content-Type: application/x-www-form-urlencoded
+
+name=inAct&email=kk%40kk&phone=0100101010&doctor_id=4&date=2026-12-12&time=11%3A00+AM&notes=
+
+```
+
+
+* The server responds with `HTTP/2 302 Found` redirecting to `/dashboard`.
+
+
+
+
+4. **Verification:**
+* Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny / Dr. Hossam Farouk was successfully booked under the victim's account profile.
+
+
+
+
+
+---
+
+## 5. Impact
+
+* **Data Integrity Violation:** Attackers can book unintended medical appointments, clog clinic schedules, and distort medical records for arbitrary users.
+
+
+* **Resource Exhaustion:** Malicious actors can automate appointment bookings to lock out real patients from booking valid slots.
+* **Unauthorized Account Manipulation:** Allows identity impersonation across action endpoints relying on the deserialized session object.
+
+
+
+---
+
+## 6. Remediation Guidelines
+
+1. **Enforce Cryptographic Signing & Validation:**
+* Ensure session cookies are signed using a strong, secret key (`SECRET_KEY`) and that signatures are strictly validated on every HTTP request before deserializing state.
+
+
+
+
+2. **Server-Side Session Storage:**
+* Transition from storing user identification data inside client-side cookies to storing session state exclusively server-side (e.g., Redis, database session store), referencing it via a cryptographically random session identifier.
+
+
+3. **Strict Authorization Checks:**
+* Validate that the authenticated user performing the action matches the server-side identity associated with the session before executing write operations on `/book`.
 
 ## 03 — Information Disclosure: Doctors' Details and Email Addresses
 
