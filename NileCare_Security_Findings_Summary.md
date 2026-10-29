@@ -178,6 +178,8 @@ Because the HMAC signature is either not verified or absent during request autho
 3. **Strict Authorization Checks:**
 * Validate that the authenticated user performing the action matches the server-side identity associated with the session before executing write operations on `/book`.
 
+`submitted by Abdulaziz soltan, aka k0rdz`
+
 ## 03 — Information Disclosure: Doctors' Details and Email Addresses
 
 **Affected functionality:** Public doctors API  
@@ -223,33 +225,106 @@ The server accepted a client-supplied `discount_pct` value instead of calculatin
 
 ---
 
-## 05 — Forgot Password: Unauthenticated Password Reset
-
-**Affected functionality:** Forgot-password / password-reset flow  
-**Endpoint:** `POST /forgot-password` (entry point; reset action not yet documented)  
-**Status:** Reported for follow-up — **not verified in the source report**
-
-**Claim to document:** It may be possible to change another user's password without authenticating as that user. The supplied recon file does not establish this result: it explicitly states that the complete password-reset flow was not exercised and that reset-token security remained unknown. This finding should only be marked **Confirmed** once an authorized test proves the claim.
-
-**Potential impact if confirmed:** Unauthorized password change and account takeover.
-
-**Technical details — add here**
-
-- **Exact vulnerable endpoint:** [ADD]
-- **Affected user/account used for authorized test:** [ADD]
-- **Authentication state during test:** [ADD]
-- **Password-reset request:** [ADD]
-- **Password-reset response:** [ADD]
-- **Evidence that password changed without authorization:** [ADD]
-- **Steps to reproduce:** [ADD]
-- **Screenshots / evidence:** [ADD]
-
-**Recommendation:** Bind reset tokens to the intended account, make them cryptographically random, short-lived, and single-use; validate them server-side and revoke active sessions after password changes where appropriate.
+# 5 - Insecure Password Reset Token Exposure & Permanent Reusability
 
 ---
 
-## Evidence Checklist
+## 1. Executive Summary
 
-For each confirmed issue, attach the original HTTP request, server response, clear reproduction steps, screenshots or screen recordings, the expected versus actual behavior, and a short impact statement. Use only authorized test accounts and redact cookies, passwords, and patient information before publication.
+A critical security vulnerability resides in the password reset mechanism of the NileCare application (`https://tan-clinic-mono-flood.trycloudflare.com`). While traffic is protected by transport-layer encryption (**HTTPS**), the application introduces severe risks by **explicitly exposing the password reset token in the HTTP response body** and utilizing **static, non-expiring, and reusable tokens** tied permanently to user accounts. This combination enables persistent Account Takeover (ATO) vectors through information disclosure, referrer header leaks, or browser history caching.
 
-**Note:** This is a shortened working draft based on the supplied recon report. Entries labeled *requires verification* are intentionally not presented as confirmed vulnerabilities.
+---
+
+## 2. Vulnerability Overview
+
+* **Vulnerability Type:** Sensitive Information Disclosure & Permanent/Reusable Password Reset Token (Leading to Account Takeover).
+
+
+* **Affected Application:** NileCare Patient Portal (`https://tan-clinic-mono-flood.trycloudflare.com`).
+
+
+* **Affected Endpoint:** `POST /forgot-password`.
+
+
+* **Severity:** Critical (CVSS v3.1 Score: 8.6 - `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N`).
+* **Impact:** Full Account Takeover (ATO), persistent unauthorized access, and complete bypass of authentication mechanisms.
+
+
+
+---
+
+## 3. Technical Details & Root Cause Analysis
+
+
+* **Transport Encryption:** Because the application operates over HTTPS, the token cannot be captured via passive plain-text network sniffing (such as packet inspection on a local network).
+* **The Actual Flaw (Information Disclosure & Reusability):** The vulnerability does not stem from transit sniffing, but rather from **server-side disclosure**:
+1. **Response Body Leak:** When a password reset is requested for an account (`kk@kk`), the server returns the unique token and reset URL directly inside the HTTP response body.
+
+
+2. **URL Parameter Exposure:** The token is passed as a GET parameter (`?token=1d4db8800978483ef04a31e92f6ed3ca`), making it vulnerable to leakage via `Referer` headers, browser history, or server access logs.
+
+
+
+3. **Permanent Lifetime:** The token never expires and is never invalidated after use, meaning once discovered, it can be used repeatedly to perform continuous account takeovers.
+
+
+---
+
+
+## 4. Proof of Concept (PoC) Steps
+
+1. **Triggering the Reset Request:**
+* Submit a target email address (`kk@kk`) via a `POST` request to the password recovery endpoint.
+
+
+
+2. **Observing the Information Disclosure:**
+* Inspect the HTTP response body. The application explicitly prints the raw reset URL containing the static token (`1d4db8800978483ef04a31e92f6ed3ca`).
+
+
+
+3. **Executing Account Takeover:**
+* Navigate to the URL over HTTPS (`https://tan-clinic-mono-flood.trycloudflare.com/reset-password?token=...`).
+
+
+
+* Input a new password to successfully compromise the victim's account.
+
+
+
+
+4. **Validating Persistent Reusability:**
+* Attempt to reuse the exact same token URL again; confirm that **the token remains valid indefinitely**, allowing an attacker to regain entry at any time even after passwords are changed.
+
+
+
+
+
+---
+
+## 5. Impact
+
+* **Account Takeover (ATO):** Any exposure of the response body or URL allows an attacker to instantly take over the victim's account.
+
+
+* **Permanent Backdoor:** Because the token is static and non-expiring, changing the password does not revoke the token, giving an adversary permanent, long-term access.
+
+
+
+---
+
+## 6. Remediation Guidelines
+
+1. **Eliminate Response Body Disclosure:**
+* Never return password reset tokens or reset links directly in HTTP response bodies. Transmit reset links exclusively through secure, out-of-band communication channels (such as verified user emails).
+
+
+
+
+2. **Implement Token Expiration & Single-Use Rules:**
+* Generate cryptographically secure, randomized tokens with a short lifespan (e.g., 15 minutes).
+* Ensure tokens are **single-use** and are automatically invalidated in the database immediately after a password reset is completed.
+
+
+3. **Token Rotation:**
+* Ensure requesting a new reset token or successfully changing a password invalidates all prior tokens associated with the account.
