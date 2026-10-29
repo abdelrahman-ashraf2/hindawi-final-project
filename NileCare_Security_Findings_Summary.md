@@ -99,10 +99,12 @@ Because the HMAC signature is either not verified or absent during request autho
 ## 4. Proof of Concept (PoC) Steps
 
 1. **Session Interception & Decoding:**
-* Log into the NileCare portal and initiate a appointment booking request.
+* Log into the NileCare portal and initiate a appointment booking request using the account kk@kk.
 
+![the first account to initiate the request](<Images/Screenshot 2026-10-29 050538.png>)
 
 * Capture the request in Burp Suite and extract the `session` cookie value.
+
 
 
 * Decode the session cookie using `[https://hackindex.io/](https://hackindex.io/)` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
