@@ -138,8 +138,9 @@ Because the HMAC signature is either not verified or absent during request autho
 
 
 
+
 4. **Verification:**
-* Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny / Dr. Hossam Farouk was successfully booked under the victim's account profile.
+* Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny was successfully booked under the victim's account profile.
 
 
 
