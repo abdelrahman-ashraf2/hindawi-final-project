@@ -344,7 +344,7 @@ Report Details / Content:
 * **Arbitrary JavaScript execution** in the NileCare origin when a victim opens the malicious report and interacts with the injected element.
 * **Actions on behalf of the victim:** script running in the victim's session can send authenticated requests (e.g., booking appointments, changing profile data) and read any data shown on the page, including patient name, email, and phone number.
 * **Phishing / content manipulation:** injected content can redirect users or overlay fake forms on a trusted medical portal.
-* **Scope of exposure:** as demonstrated, the payload executed in the session of the account that created the report (self-XSS). Cross-user impact depends on whether other users (for example doctors or staff) can open a patient's report view page, or whether view links can be shared or forged (see the token observation above). [ADD result if tested]
+* **Scope of exposure:** as demonstrated, the payload executed in the session of the account that created the report (self-XSS). Cross-user impact depends on whether other users (for example doctors or staff) can open a patient's report view page, or whether view links can be shared or forged (see the token observation above).
 * **Session theft limited:** `document.cookie` returned no readable value in testing, so direct cookie theft via this payload was not demonstrated.
 ---
  
