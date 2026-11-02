@@ -180,9 +180,9 @@ The server accepted a client-supplied `discount_pct` value instead of calculatin
 **Technical details — add here**
  
 - **Affected URL:** /lab-tests/book
-- **Original booking request and expected amount:** (<Images/disc pct (2).png>)
-- **Modified parameter / request:** (<Images/disc pct (3).png>)
-- **Server response and stored result:** (<Images/disc pct (4).png>)
+- **Original booking request and expected amount:** ![anyname](<Images/disc pct (2).png>) 
+- **Modified parameter / request:** ![anyname](<Images/disc pct (3).png>)
+- **Server response and stored result:** ![anyname](<Images/disc pct (4).png>)
 **Recommendation:** Calculate discounts and final prices on the server from trusted rules; ignore client-provided percentage values and validate promo-code eligibility and limits.
  
 ---
