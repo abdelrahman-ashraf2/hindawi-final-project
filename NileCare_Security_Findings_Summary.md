@@ -85,67 +85,92 @@ Validate the final filename extension against an allowlist and verify file conte
 
 ---
 
-## 02 | Insecure Direct Object Reference (IDOR)
-
-**Affected components:** `POST /book`
-
-**CVSS 3.1 vector:** `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N`
-
-**Status: Confirmed**
-
-The appointment-booking workflow allows client-controlled patient identity to be changed so that a booking is recorded under another patient's account. The team demonstrated the effect with two test accounts and verified the additional appointment in the target account's dashboard.
-
-### Technical details
-The test used the account `kk@kk` to initiate the booking and `ff@ff` as the target test identity. The session data exposes identity fields including `user_id`, `patient_name` and `patient_email`. Altering the client-supplied identity used by the booking request changed the account under which the appointment was created. The authorization failure is the ability to create an appointment for a different account through this manipulated identity.
-
-Example identity structure, with no usable session token:
-```json
-{
-  "patient_email": "<target-test-account>",
-  "patient_name": "<target-test-name>",
-  "user_id": "<target-test-user-id>"
-}
-```
-
-### Steps to reproduce
-1. Sign in with the initiating test account and capture a booking request in Burp Suite.
-2. Inspect the session's patient identity data.
-3. Modify the identity fields to those of the second test account and prepare the modified session value used in the team's test.
-4. Submit the booking through `POST /book` with that modified value.
-5. Observe `302 Found` redirecting to `/dashboard`.
-6. Sign in normally as the target test account and verify the new appointment in its dashboard.
-
-Request outline:
-```http
-POST /book HTTP/1.1
-Host: tan-clinic-mono-flood.trycloudflare.com
-Cookie: session=[REDACTED]
-Content-Type: application/x-www-form-urlencoded
-
-name=<test-name>&email=<test-email>&phone=<test-phone>&doctor_id=<doctor>&date=<date>&time=<time>&notes=
-```
-
-### Impact
-Unauthorized appointment creation violates patient-record integrity and permits impersonation in the booking workflow. It also allows unwanted appointments to consume clinic scheduling capacity.
-
-**Discovered and tested by:** Abdulaziz Soltan, aka k0rdz.
-
-### Evidence
-
-![E02: Target account before the IDOR booking test.](report/evidence/booking-before.png)
-
-![E03: Target account after exploitation, showing the additional appointment.](report/evidence/booking-after.png)
-
-### Recommendation
-
-Derive the booking owner from a trusted, verified authenticated identity on the server. Reject a client-supplied patient identity that does not match the authorized account. Enforce object-level authorization for every booking operation, validate the integrity of session data, and use revocable server-side session state or equally strong signed-session controls. Include two-account authorization checks in regression testing.
-
-### References
-
-- [https://cwe.mitre.org/data/definitions/862.html](https://cwe.mitre.org/data/definitions/862.html)
-- [https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
+## 02 — Insecure Direct Object Reference (IDOR)
 
 ---
+
+1. Executive Summary
+An Insecure Direct Object Reference (IDOR) / Broken Access Control vulnerability exists within the NileCare Patient Portal booking system. The application relies on a client-side modifiable session cookie (using URL-safe timed serialization without signature enforcement verification) to identify the authenticated user. By decoding the session payload, modifying identity parameters (`user_id`, `patient_name`, `patient_email`), and re-encoding the token, an attacker can manipulate session state to schedule medical appointments on behalf of arbitrary victims.
+---
+2. Vulnerability Overview
+Vulnerability Type: Insecure Direct Object Reference (IDOR) / Broken Access Control / Insecure Session Management.
+Affected Application: NileCare Patient Portal (https://tan-clinic-mono-flood.trycloudflare.com).
+Affected Endpoint: `POST /book`.
+Severity: High (CVSS v3.1 Score: 7.5 - `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N`).
+Impact: Unauthorized appointment creation for arbitrary users, potential schedule/calendar tampering, and loss of integrity in patient booking records.
+---
+3. Technical Details & Root Cause Analysis
+Root Cause
+The NileCare application uses a `URLSafeTimedSerializer` (zlib deflated JSON structure) to serialize user identity into the `session` cookie. The server processes booking requests at `/book` by trusting the identity stored within this session object without verifying a cryptographic signature or matching the request identity against server-side session state.
+Decoded Session Cookie Payload
+Decoding the `session` cookie via tools (e.g., `[https://hackindex.io/](https://hackindex.io/)`) reveals the unverified JSON structure:
+```
+json
+{
+  "patient_email": "kk@kk",
+  "patient_name": "inAct",
+  "user_id": 1322
+}
+ 
+```
+ Because the HMAC signature is either not verified or absent during request authorization, an attacker can replace `user_id`, `patient_name`, and `patient_email` with victim parameters (e.g., `ff@ff`) and submit modified booking requests.
+
+---
+
+4. Proof of Concept (PoC) Steps
+Session Interception & Decoding:
+Log into the NileCare portal and initiate a appointment booking request using the account kk@kk.
+
+![the first account to initiate the request](<Images/Screenshot 2026-10-29 050538.png>)
+
+Capture the request in Burp Suite and extract the `session` cookie value.
+
+![captured the request in Burp Suite](<Images/Screenshot 2026-10-29 003322.png>)
+
+Decode the session cookie using `https://hackindex.io/` or Flask session decoding utilities, revealing the payload attributes (`patient_email`, `patient_name`, `user_id`).
+
+![photo of the JSON Payload](<Images/Screenshot 2026-10-29 010122.png>)
+
+Payload Modification & Encoding:
+Modify the payload attributes to target the victim account (`ffff` / `ff@ff`):
+```json
+{
+  "patient_email": "ff@ff",
+  "patient_name": "ffff",
+  "user_id": <VICTIM_ID>
+}
+ 
+```
+
+Encode the modified JSON structure using the `URLSafeTimedSerializer` format.
+Exploitation / Request Submission:
+Send a `POST /book` request with the modified `session` cookie:
+The server responds with `HTTP/2 302 Found` redirecting to `/dashboard`.
+
+![photo of the request with the modified cookie](<Images/Screenshot 2026-10-29 011527.png>)
+
+Verification:
+Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny was successfully booked under the victim's account profile.
+`ff@ff before the exploitation`
+![ff@ff before the exploitation](<Images/Screenshot 2026-10-29 010027.png>)
+
+`ff@ff after the exploitation`
+![ff@ff after the exploitation](<Images/Screenshot 2026-10-29 011511.png>)
+
+---
+5. Impact
+Data Integrity Violation: Attackers can book unintended medical appointments, clog clinic schedules, and distort medical records for arbitrary users.
+Resource Exhaustion: Malicious actors can automate appointment bookings to lock out real patients from booking valid slots.
+Unauthorized Account Manipulation: Allows identity impersonation across action endpoints relying on the deserialized session object.
+---
+6. Remediation Guidelines
+Enforce Cryptographic Signing & Validation:
+Ensure session cookies are signed using a strong, secret key (`SECRET_KEY`) and that signatures are strictly validated on every HTTP request before deserializing state.
+Server-Side Session Storage:
+Transition from storing user identification data inside client-side cookies to storing session state exclusively server-side (e.g., Redis, database session store), referencing it via a cryptographically random session identifier.
+Strict Authorization Checks:
+Validate that the authenticated user performing the action matches the server-side identity associated with the session before executing write operations on `/book`.
+`Discovered and tested by Abdulaziz Soltan, aka k0rdz`
 
 ## 03 | Information Disclosure - Doctor Details and Email Addresses
 
@@ -235,42 +260,66 @@ Calculate the discount and final price on the server using trusted product price
 
 ---
 
-## 05 | Forgot Password - Unauthenticated Password Reset / Account Takeover
+## 05 - Insecure Password Reset Token Exposure & Permanent Reusability
 
-**Affected components:** `POST /forgot-password`, `GET/POST /reset-password`
+---
 
-**CVSS 3.1 vector:** `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N`
+1. Executive Summary
+A critical security vulnerability resides in the password reset mechanism of the NileCare application (`https://tan-clinic-mono-flood.trycloudflare.com`). While traffic is protected by transport-layer encryption (HTTPS), the application introduces severe risks by explicitly exposing the password reset token in the HTTP response body and utilizing static, non-expiring, and reusable tokens tied permanently to user accounts. This combination enables persistent Account Takeover (ATO) vectors through information disclosure, referrer header leaks, or browser history caching.
+---
+2. Vulnerability Overview
+Vulnerability Type: Sensitive Information Disclosure & Permanent/Reusable Password Reset Token (Leading to Account Takeover).
+Affected Application: NileCare Patient Portal (`https://tan-clinic-mono-flood.trycloudflare.com`).
+Affected Endpoint: `POST /forgot-password`.
+Severity: Critical (CVSS v3.1 Score: 8.6 - `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N`).
+Impact: Full Account Takeover (ATO), persistent unauthorized access, and complete bypass of authentication mechanisms.
+---
+3. Technical Details & Root Cause Analysis
 
-**Status: Confirmed**
+Transport Encryption: Because the application operates over HTTPS, the token cannot be captured via passive plain-text network sniffing (such as packet inspection on a local network).
+The Actual Flaw (Information Disclosure & Reusability): The vulnerability does not stem from transit sniffing, but rather from server-side disclosure:
+Response Body Leak: When a password reset is requested for an account (`kk@kk`), the server returns the unique token and reset URL directly inside the HTTP response body.
+URL Parameter Exposure: The token is passed as a GET parameter (`?token=1d4db8800978483ef04a31e92f6ed3ca`), making it vulnerable to leakage via `Referer` headers, browser history, or server access logs.
+Permanent Lifetime: The token never expires and is never invalidated after use, meaning once discovered, it can be used repeatedly to perform continuous account takeovers.
 
-The password-recovery endpoint returns the password-reset link directly in its HTTP response. An unauthenticated requester can obtain that link for a known account and set a new password without access to the account's mailbox. The same token remains usable after a successful reset.
+---
 
-### Steps to reproduce
-1. Submit the controlled account's email to `/forgot-password` without authentication.
-2. Inspect the response body and obtain the reset URL.
-3. Open that URL and set a replacement password.
-4. Sign in using the replacement password.
-5. Reuse the same reset URL and repeat the reset, demonstrating that successful use did not consume the token.
+4. Proof of Concept (PoC) Steps
+Triggering the Reset Request:
+Submit a target email address (`kk@kk`) via a `POST` request to the password recovery endpoint.
+Observing the Information Disclosure:
+Inspect the HTTP response body. The application explicitly prints the raw reset URL containing the static token (`1d4db8800978483ef04a31e92f6ed3ca`).
 
-The request submits the `email` form field to `POST /forgot-password`. The response discloses a link in the form `/reset-password?token=[REDACTED]`.
+![raw token captured on Burp Suite](<Images/Screenshot 2026-10-29 044404.png>)
 
-### Impact
-Knowing the account's email is sufficient to obtain a reset capability and replace its password. Token reuse allows the account to be compromised again using the same recovery link after the password changes. HTTPS does not prevent this application-level disclosure to the requester.
+Executing Account Takeover:
+Navigate to the URL over HTTPS (`https://tan-clinic-mono-flood.trycloudflare.com/reset-password?token=...`).
+Input a new password to successfully compromise the victim's account.
 
-### Evidence
-The team supplied the reset-response, reset-form and first/second-use captures: `Screenshot 2026-10-29 044404.png`, `044601.png`, `053958.png` and `054031.png`. Usable reset-token and session values are excluded from the distributed report.
+![navigating to the URL](<Images/Screenshot 2026-10-29 044601.png>)
 
-**Discovered and tested by:** Abdulaziz Soltan, aka k0rdz.
+Validating Persistent Reusability:
+Attempt to reuse the exact same token URL again; confirm that the token remains valid indefinitely, allowing an attacker to regain entry at any time even after passwords are changed.
 
-### Recommendation
+![first use of the reset token](<Images/Screenshot 2026-10-29 053958.png>)
 
-Do not return a reset capability in the requesting client's response. Deliver it only through a verified recovery channel and return a generic browser message. Generate high-entropy tokens with a short expiry, store a hash, consume each token atomically after one successful reset, and invalidate older tokens when issuing a new one. Revoke relevant sessions after credential recovery and notify the account owner.
+![second use of the reset token](<Images/Screenshot 2026-10-29 054031.png>)
 
-### References
+---
 
-- [https://cwe.mitre.org/data/definitions/640.html](https://cwe.mitre.org/data/definitions/640.html)
-- [https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)
-
+5. Impact
+Account Takeover (ATO): Any exposure of the response body or URL allows an attacker to instantly take over the victim's account.
+Permanent Backdoor: Because the token is static and non-expiring, changing the password does not revoke the token, giving an adversary permanent, long-term access.
+---
+6. Remediation Guidelines
+Eliminate Response Body Disclosure:
+Never return password reset tokens or reset links directly in HTTP response bodies. Transmit reset links exclusively through secure, out-of-band communication channels (such as verified user emails).
+Implement Token Expiration & Single-Use Rules:
+Generate cryptographically secure, randomized tokens with a short lifespan (e.g., 15 minutes).
+Ensure tokens are single-use and are automatically invalidated in the database immediately after a password reset is completed.
+Token Rotation:
+Ensure requesting a new reset token or successfully changing a password invalidates all prior tokens associated with the account.
+`Discovered and tested by Abdulaziz Soltan, aka k0rdz`
 ---
 
 ## 06 | Stored Cross-Site Scripting (XSS) - Medical Report Fields
