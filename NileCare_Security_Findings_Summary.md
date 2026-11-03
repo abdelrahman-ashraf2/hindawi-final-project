@@ -151,6 +151,7 @@ The server responds with `HTTP/2 302 Found` redirecting to `/dashboard`.
 
 Verification:
 Accessing the victim's dashboard (`ff@ff`) confirms that the appointment for Dr. Ahmed El-Sherbiny was successfully booked under the victim's account profile.
+
 `ff@ff before the exploitation`
 ![ff@ff before the exploitation](<Images/Screenshot 2026-10-29 010027.png>)
 
