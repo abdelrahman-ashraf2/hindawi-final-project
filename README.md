@@ -5,10 +5,7 @@
 
 **A hands-on web security assessment focused on identifying, validating, and documenting real-world vulnerabilities.**
 
-![Security](https://img.shields.io/badge/Focus-Web%20Security-0D1117?style=for-the-badge)
-![Findings](https://img.shields.io/badge/Confirmed%20Findings-6-00A878?style=for-the-badge)
-![Critical](https://img.shields.io/badge/Highest%20Severity-Critical-DC2626?style=for-the-badge)
-![Report](https://img.shields.io/badge/Report-v2.3-6366F1?style=for-the-badge)
+<img src="report/assets/readme-badges.svg" alt="Web Security | 6 confirmed findings | Critical highest severity | Report v2.3" width="764" />
 
 [📄 Full Pentest Report](report/NileCare_Consolidated_Pentest_Report.pdf) | [🔍 Technical Findings](NileCare_Security_Findings_Summary.md) | [🧪 Reconnaissance Report](NileCare_Negative_Testing_and_Reconnaissance_Report.pdf)
 
